@@ -1984,9 +1984,9 @@ end:
 }
 
 
-/* Parse the command line options, updating the options array */
+/* Parse the command line options, updating the mg_options array */
 void
-parse_args (char **options, int argc, char **argv, int *daemonize)
+parse_args (char **mg_options, int argc, char **argv, int *daemonize)
 {
   int c;
   while ((c = getopt (argc, argv, "hvfan:p:r:s:t:m:o:i:")) != -1)
@@ -2014,13 +2014,13 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
           USE_AIO = 1;
           break;
         case 'p':
-          options[1] = optarg;
+          mg_options[1] = optarg;
           break;
         case 'r':
-          options[3] = optarg;
-          memset (options[5], 0, PATH_MAX);
-          strncat (options[5], optarg, PATH_MAX);
-          strncat (options[5], "/../ssl_cert.pem", PATH_MAX - 17);
+          mg_options[3] = optarg;
+          memset (mg_options[5], 0, PATH_MAX);
+          strncat (mg_options[5], optarg, PATH_MAX);
+          strncat (mg_options[5], "/../ssl_cert.pem", PATH_MAX - 17);
           break;
         case 's':
           SCIDB_PORT = atoi (optarg);
@@ -2080,39 +2080,43 @@ main (int argc, char **argv)
   struct mg_callbacks callbacks;
   struct stat check_ssl;
   char pbuf[MAX_VARLEN];
-  char *options[9];
-  options[0] = "listening_ports";
-  options[1] = DEFAULT_HTTP_PORT;
-  options[2] = "document_root";
-  options[3] = "/var/lib/shim/wwwroot";
-  options[4] = "ssl_certificate";
-  options[5] = (char *) calloc (PATH_MAX, 1);
-  snprintf (options[5], PATH_MAX, "/var/lib/shim/ssl_cert.pem");
-  options[6] = "authentication_domain";
-  options[7] = "";
-  options[8] = NULL;
+  //  mg_options:
+  //    NULL terminated list of option_name, option_value pairs that
+  //    specify Mongoose configuration parameters.
+  char *mg_options[9];
+  mg_options[0] = "listening_ports";
+  mg_options[1] = DEFAULT_HTTP_PORT;
+  mg_options[2] = "document_root";
+  mg_options[3] = "/var/lib/shim/wwwroot";
+  mg_options[4] = "ssl_certificate";
+  mg_options[5] = (char *) calloc (PATH_MAX, 1);
+  snprintf (mg_options[5], PATH_MAX, "/var/lib/shim/ssl_cert.pem");
+  mg_options[6] = "authentication_domain";
+  mg_options[7] = "";
+  mg_options[8] = NULL;
+
   TMPDIR = DEFAULT_TMPDIR;
   TIMEOUT = DEFAULT_TIMEOUT;
   MAX_SESSIONS = DEFAULT_MAX_SESSIONS;
   SAVE_INSTANCE_ID = DEFAULT_SAVE_INSTANCE_ID;
   USE_AIO = 0;
 
-  parse_args (options, argc, argv, &daemonize);
-  if (stat (options[5], &check_ssl) < 0)
+  parse_args (mg_options, argc, argv, &daemonize);
+  if (stat (mg_options[5], &check_ssl) < 0)
     {
-/* Disable SSL  by removing any 's' port options and getting rid of the ssl
- * options.
- */
-      syslog (LOG_ERR, "ERROR Disabling SSL, error reading %s", options[5]);
-      ports = cp = strdup (options[1]);
+      /* Disable SSL  by removing any 's' port mg_options and getting rid of the ssl
+       * mg_options.
+       */
+      syslog (LOG_ERR, "ERROR Disabling SSL, error reading %s", mg_options[5]);
+      ports = cp = strdup (mg_options[1]);
       while ((cp = strchr (cp, 's')) != NULL)
         *cp++ = ',';
-      options[1] = ports;
-      options[4] = NULL;
-      free (options[5]);
-      options[5] = NULL;
+      mg_options[1] = ports;
+      mg_options[4] = NULL;
+      free (mg_options[5]);
+      mg_options[5] = NULL;
     }
-  docroot = options[3];
+  docroot = mg_options[3];
   sessions = (session *) calloc (MAX_SESSIONS, sizeof (session));
   memset (&callbacks, 0, sizeof (callbacks));
   real_uid = getuid ();
@@ -2120,7 +2124,7 @@ main (int argc, char **argv)
 
   BASEPATH = dirname (argv[0]);
 
-/* Daemonize */
+  /* Daemonize */
   k = -1;
   if (daemonize > 0)
     {
@@ -2131,7 +2135,7 @@ main (int argc, char **argv)
           fprintf (stderr, "fork error: service terminated.\n");
           exit (1);
         case 0:
-/* Close some open file descriptors */
+	  /* Close some open file descriptors */
           for (j = 0; j < 3; j++)
             (void) close (j);
           j = open ("/dev/null", O_RDWR);
@@ -2161,7 +2165,7 @@ main (int argc, char **argv)
     }
 
   callbacks.begin_request = begin_request_handler;
-  ctx = mg_start (&callbacks, NULL, (const char **) options);
+  ctx = mg_start (&callbacks, NULL, (const char **) mg_options);
   if (!ctx)
     {
       syslog (LOG_ERR, "ERROR Failed to start web service");
@@ -2177,8 +2181,8 @@ main (int argc, char **argv)
   omp_destroy_lock (&biglock);
   mg_stop (ctx);
   closelog ();
-  if (options[5])
-    free (options[5]);
+  if (mg_options[5])
+    free (mg_options[5]);
 
   return 0;
 }
