@@ -2139,17 +2139,16 @@ main (int argc, char **argv)
           dup (j);
           break;
         default:
+	  /* Write out child PID */
+	  j = open (PIDFILE, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	  if (j > 0)
+	    {
+	      snprintf (pbuf, MAX_VARLEN, "%d            ", (int)k);
+	      write (j, pbuf, strlen (pbuf));
+	      close (j);
+	    }
           exit (0);
         }
-    }
-
-/* Write out my PID */
-  j = open (PIDFILE, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-  if (j > 0)
-    {
-      snprintf (pbuf, MAX_VARLEN, "%d            ", (int) getpid ());
-      write (j, pbuf, strlen (pbuf));
-      close (j);
     }
 
   openlog ("shim", LOG_CONS | LOG_NDELAY, LOG_USER);
