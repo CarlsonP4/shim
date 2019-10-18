@@ -41,6 +41,7 @@
 #include "mbedtls/sha512.h"
 #include "base64.h"
 #include "client.h"
+#include "iniparser/src/iniparser.h"
 
 #define DEFAULT_MAX_SESSIONS 50      // Maximum number of concurrent http sessions
 #define MAX_VARLEN           4096    // Static buffer length
@@ -61,6 +62,7 @@
 #define DEFAULT_SAVE_INSTANCE_ID 0  // default instance that does the saving
 #define DEFAULT_TMPDIR "/tmp"       // Temporary location for I/O buffers
 #define PIDFILE "/var/run/shim.pid"
+#define CONFFILE "/var/lib/shim/conf"
 
 #define WEEK 604800             // One week in seconds
 #define DEFAULT_TIMEOUT 60      // Timeout before a session is declared
@@ -169,6 +171,7 @@ static uid_t real_uid;          // For setting uid to logged in user when requir
 omp_lock_t biglock;
 char *BASEPATH;
 char *TMPDIR;                   // temporary files go here
+char *USER;                     // user name to run shim under
 int MAX_SESSIONS;               // configurable maximum number of concurrent sessions
 int SAVE_INSTANCE_ID;           // which instance ID should run save commands?
 time_t TIMEOUT;                 // session timeout
@@ -2050,6 +2053,119 @@ parse_args (char **mg_options, int argc, char **argv, int *daemonize)
     }
 }
 
+/* SHIM CONFIG FILE
+
+   This file specifies values for the following configurable parameters:
+      ports:        http listening ports
+      doc:          document root
+      scidbhost:    SciDB host
+      scidbport:    SciDB port
+      tmp:          temporary I/O directory
+      user:         run shim as this user
+      max_sessions: maximum concurrent sessions
+      timeout:      http session timeout
+      instance:     instance id for save to file
+      aio:          use (=1) or not use (=0) the aoi tools plugin
+   Lines beginning with a '#' are commented out lines.
+   Whitespace (blank or tab) are ignored.
+*/
+   
+void
+parse_conf (char **mg_options)
+{
+  dictionary  *   ini ;
+
+  /* Some temporary variables to hold query results */
+  int             b ;
+  int             i ;
+  const char  *   s ;
+
+  ini = iniparser_load(CONFFILE);
+  if (ini==NULL) {
+    fprintf(stderr, "cannot parse file: %s\n", CONFFILE);
+    return;
+  }
+  // iniparser_dump(ini, stderr);
+  /* ports:        http listening ports */
+  s = iniparser_getstring(ini, ":ports", NULL);
+  if (s != NULL) {
+    mg_options[1] = (char *) calloc (PATH_MAX, 1);
+    snprintf (mg_options[1], PATH_MAX, s);
+  }
+  /* doc:          document root */
+  s = iniparser_getstring(ini, ":doc", NULL);
+  if (s != NULL) {
+    mg_options[3] = (char *) calloc (PATH_MAX, 1);
+    snprintf (mg_options[3], PATH_MAX, s);
+    memset (mg_options[5], 0, PATH_MAX);
+    strncat(mg_options[5], s, PATH_MAX);
+    strncat(mg_options[5], "/../ssl_cert.pem", PATH_MAX - 17);
+  }
+  /* scidbhost:    SciDB host */
+  s = iniparser_getstring(ini, ":scidbhost", NULL);
+  if (s != NULL) {
+    SCIDB_HOST = (char *) calloc (PATH_MAX, 1);
+    snprintf (SCIDB_HOST, PATH_MAX, s);
+  }
+  /* scidbport:    SciDB port */
+  i = iniparser_getint(ini, ":scidbport", -1);
+  if (i != -1) {
+    SCIDB_PORT = i;
+  }
+  /* tmp:          temporary I/O directory */
+  s = iniparser_getstring(ini, ":tmp", NULL);
+  if (s != NULL) {
+    TMPDIR = (char *) calloc (PATH_MAX, 1);
+    snprintf (TMPDIR, PATH_MAX, s);
+  }
+  /* user:         run shim as this user */
+  s = iniparser_getstring(ini, ":user", NULL);
+  if (s != NULL) {
+    USER = (char *) calloc (PATH_MAX, 1);
+    snprintf (USER, PATH_MAX, s);
+  }
+  /* max_sessions: maximum concurrent sessions */
+  i = iniparser_getint(ini, ":max_sessions", -1);
+  if (i != -1) {
+    MAX_SESSIONS = i;
+    MAX_SESSIONS = (MAX_SESSIONS > 100 ? 100 : MAX_SESSIONS);
+  }
+  /* timeout:      http session timeout */
+  i = iniparser_getint(ini, ":timeout", -1);
+  if (i != -1) {
+    TIMEOUT = i;
+    TIMEOUT = (TIMEOUT < 60 ? 60 : TIMEOUT);
+  }
+  /* instance:     instance id for save to file */
+  i = iniparser_getint(ini, ":instance", -1);
+  if (i != -1) {
+    SAVE_INSTANCE_ID = i;
+    SAVE_INSTANCE_ID = (SAVE_INSTANCE_ID < 0 ? 0 : SAVE_INSTANCE_ID);
+  }
+  /* aio:          use (=1) or not use (=0) the aoi tools plugin */
+  b = iniparser_getboolean(ini, ":aio", -1);
+  if (b == 1) {
+    USE_AIO = 1;
+  }
+
+  iniparser_freedict(ini);
+}
+
+void
+debug_args (char **mg_options)
+{
+  printf("ports:%s\n", mg_options[1]);
+  printf("doc:%s\n", mg_options[3]);
+  printf("cert:%s\n", mg_options[5]);
+  printf("scidbhost:%s\n", SCIDB_HOST);
+  printf("scidbport:%d\n", SCIDB_PORT);
+  printf("tmp:%s\n", TMPDIR);
+  printf("user:%s\n", USER);
+  printf("max_sessions:%d\n", MAX_SESSIONS);
+  printf("timeout:%d\n", TIMEOUT);
+  printf("instance:%d\n", SAVE_INSTANCE_ID);
+  printf("aio:%d\n", USE_AIO);
+}
 
 static void
 signalHandler (int sig)
@@ -2102,6 +2218,10 @@ main (int argc, char **argv)
   USE_AIO = 0;
 
   parse_args (mg_options, argc, argv, &daemonize);
+  // debug_args (mg_options);
+  parse_conf (mg_options);
+  // debug_args (mg_options);
+
   if (stat (mg_options[5], &check_ssl) < 0)
     {
       /* Disable SSL  by removing any 's' port mg_options and getting rid of the ssl
