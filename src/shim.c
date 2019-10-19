@@ -25,6 +25,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <libgen.h>
 #include <sys/types.h>
 #include <sys/resource.h>
@@ -62,7 +63,7 @@
 #define DEFAULT_SAVE_INSTANCE_ID 0  // default instance that does the saving
 #define DEFAULT_TMPDIR "/tmp"       // Temporary location for I/O buffers
 #define PIDFILE "/var/run/shim.pid"
-#define CONFFILE "/var/lib/shim/conf"
+#define DEFAULT_CONFFILE "/var/lib/shim/conf"
 
 #define WEEK 604800             // One week in seconds
 #define DEFAULT_TIMEOUT 60      // Timeout before a session is declared
@@ -169,15 +170,17 @@ static uid_t real_uid;          // For setting uid to logged in user when requir
  * nesting/recursion.
  */
 omp_lock_t biglock;
+/* Global variables
+ */
 char *BASEPATH;
+char *CONFFILE;                 // shim configuration file
 char *TMPDIR;                   // temporary files go here
 char *USER;                     // user name to run shim under
 int MAX_SESSIONS;               // configurable maximum number of concurrent sessions
 int SAVE_INSTANCE_ID;           // which instance ID should run save commands?
 time_t TIMEOUT;                 // session timeout
-
-int USE_AIO;                    //use accelerated io for some saves: 0/1
-
+int USE_AIO;                    // use accelerated io for some saves: 0/1
+char *COMMAND;                  // command line directive
 
 /* copy input string to already-allocated output string, omitting incidences
  * of dot characters. output must have allocated size sufficient to hold the
@@ -1987,22 +1990,42 @@ end:
 }
 
 
-/* Parse the command line options, updating the mg_options array */
+/* Parse the command line options */
 void
-parse_args (char **mg_options, int argc, char **argv, int *daemonize)
+parse_args (int argc, char **argv, int *daemonize)
 {
   int c;
-  while ((c = getopt (argc, argv, "hvfan:p:r:s:t:m:o:i:")) != -1)
+  while ((c = getopt (argc, argv, "hvfc:")) != -1)
     {
       switch (c)
         {
         case 'h':
+	  printf
+	    ("Usage:\nshim [-h] [-v] [-f] [-c <shim configuration file>] [start|stop|restart|status|test]\n");
+	  printf
+	    ("  -h Prints this help message.\n");
+	  printf
+	    ("     Start up shim and view http://localhost:8080/help.html from a browser for help with the API.\n");
           printf
-            ("Usage:\nshim [-h] [-v] [-f] [-p <http port>] [-r <document root>] [-n <scidb host>] [-s <scidb port>] [-t <tmp I/O DIR>] [-m <max concurrent sessions] [-o <http session timeout>] [-i <instance id for save>] [-a]\n");
-          printf
-            ("The -v option prints the version build ID and exits.\nSpecify -f to run in the foreground.\nDefault http ports are 8080 and 8083(SSL).\nDefault SciDB host is localhost.\nDefault SciDB port is 1239.\nDefault document root is /var/lib/shim/wwwroot.\nDefault temporary I/O directory is /tmp.\nDefault max concurrent sessions is 50 (max 100).\nDefault http session timeout is 60s and min is 60 (see API doc).\nDefault instance id for save to file is 0.\nBy default the aio_toos plugin is not used.\n");
-          printf
-            ("Start up shim and view http://localhost:8080/help.html from a browser for help with the API.\n\n");
+            ("  -v Prints the version build ID and exits.\n");
+	  printf
+	    ("  -f Runs shim in the foreground.\n");
+	  printf
+	    ("     Default is to run as a daemon.\n");
+	  printf
+	    ("  -c Overrides the default configuration file of '%s'.\n", CONFFILE);
+	  printf
+	    ("\n");
+	  printf
+	    ("  start   : start shim.\n");
+	  printf
+	    ("  stop    : stop currently running shim.\n");
+	  printf
+	    ("  restart : stop and then start shim.\n");
+	  printf
+	    ("  status  : status of shim. This is the default.\n");
+	  printf
+	    ("  test    : configuration shim would run with.\n");
           exit (0);
           break;
         case 'v':
@@ -2013,44 +2036,30 @@ parse_args (char **mg_options, int argc, char **argv, int *daemonize)
         case 'f':
           *daemonize = 0;
           break;
-        case 'a':
-          USE_AIO = 1;
-          break;
-        case 'p':
-          mg_options[1] = optarg;
-          break;
-        case 'r':
-          mg_options[3] = optarg;
-          memset (mg_options[5], 0, PATH_MAX);
-          strncat (mg_options[5], optarg, PATH_MAX);
-          strncat (mg_options[5], "/../ssl_cert.pem", PATH_MAX - 17);
-          break;
-        case 's':
-          SCIDB_PORT = atoi (optarg);
-          break;
-        case 't':
-          TMPDIR = optarg;
-          break;
-        case 'i':
-          SAVE_INSTANCE_ID = atoi (optarg);
-          SAVE_INSTANCE_ID = (SAVE_INSTANCE_ID < 0 ? 0 : SAVE_INSTANCE_ID);
-          break;
-        case 'm':
-          MAX_SESSIONS = atoi (optarg);
-          MAX_SESSIONS = (MAX_SESSIONS > 100 ? 100 : MAX_SESSIONS);
-          break;
-        case 'o':
-          TIMEOUT = atoi (optarg);
-          TIMEOUT = (TIMEOUT < 60 ? 60 : TIMEOUT);
-          break;
-        case 'n':
-          SCIDB_HOST = optarg;
-          break;
-
+	case 'c':
+	  CONFFILE = optarg;
+	  break;
         default:
           break;
         }
     }
+  // Use the first command line non-option as the command word
+  if (optind < argc) {
+    COMMAND = argv[optind];
+    // Check for valid commands
+    for(int i = 0; COMMAND[i]; i++)
+      COMMAND[i] = tolower(COMMAND[i]);
+    if ( (strcmp(COMMAND,"start") &&
+	  strcmp(COMMAND,"stop") &&
+	  strcmp(COMMAND,"restart") &&
+	  strcmp(COMMAND,"status") &&
+	  strcmp(COMMAND,"test")) !=0 )
+      {
+	printf ("Unknown command: '%s'.\n", COMMAND);
+	printf ("Should be one of: start, stop, restart, status, test.\n");
+	exit (1);
+      }
+  }
 }
 
 /* SHIM CONFIG FILE
@@ -2082,8 +2091,8 @@ parse_conf (char **mg_options)
 
   ini = iniparser_load(CONFFILE);
   if (ini==NULL) {
-    fprintf(stderr, "cannot parse file: %s\n", CONFFILE);
-    return;
+    fprintf (stderr, "cannot parse file: %s\n", CONFFILE);
+    exit(1);
   }
   // iniparser_dump(ini, stderr);
   /* ports:        http listening ports */
@@ -2154,17 +2163,17 @@ parse_conf (char **mg_options)
 void
 debug_args (char **mg_options)
 {
-  printf("ports:%s\n", mg_options[1]);
-  printf("doc:%s\n", mg_options[3]);
-  printf("cert:%s\n", mg_options[5]);
-  printf("scidbhost:%s\n", SCIDB_HOST);
-  printf("scidbport:%d\n", SCIDB_PORT);
-  printf("tmp:%s\n", TMPDIR);
-  printf("user:%s\n", USER);
-  printf("max_sessions:%d\n", MAX_SESSIONS);
-  printf("timeout:%d\n", TIMEOUT);
-  printf("instance:%d\n", SAVE_INSTANCE_ID);
-  printf("aio:%d\n", USE_AIO);
+  printf ("ports='%s'\n", mg_options[1]);
+  printf ("doc='%s'\n", mg_options[3]);
+  printf ("cert='%s'\n", mg_options[5]);
+  printf ("scidbhost='%s'\n", SCIDB_HOST);
+  printf ("scidbport=%d\n", SCIDB_PORT);
+  printf ("tmp='%s'\n", TMPDIR);
+  printf ("user='%s'\n", USER);
+  printf ("max_sessions=%d\n", MAX_SESSIONS);
+  printf ("timeout=%ju\n", (uintmax_t)TIMEOUT);
+  printf ("instance=%d\n", SAVE_INSTANCE_ID);
+  printf ("aio=%d\n", USE_AIO);
 }
 
 static void
@@ -2211,17 +2220,52 @@ main (int argc, char **argv)
   mg_options[7] = "";
   mg_options[8] = NULL;
 
+  CONFFILE = DEFAULT_CONFFILE;
   TMPDIR = DEFAULT_TMPDIR;
   TIMEOUT = DEFAULT_TIMEOUT;
   MAX_SESSIONS = DEFAULT_MAX_SESSIONS;
   SAVE_INSTANCE_ID = DEFAULT_SAVE_INSTANCE_ID;
   USE_AIO = 0;
+  COMMAND = "status";
 
-  parse_args (mg_options, argc, argv, &daemonize);
+  parse_args (argc, argv, &daemonize);
   // debug_args (mg_options);
   parse_conf (mg_options);
   // debug_args (mg_options);
 
+  // Implement command
+  if (strcmp (COMMAND,"status") == 0) {
+    FILE *f;
+    int pid;
+
+    if (!(f=fopen(PIDFILE,"r"))) {
+      printf ("shim is not running.\n");
+      exit (0);
+    }
+    fscanf(f,"%d", &pid);
+    fclose(f);
+
+    printf ("shim is running as process %d\n", pid);
+    exit (0);
+  }
+  if (strcmp (COMMAND,"test") == 0) {
+    debug_args (mg_options);
+    exit (0);
+  }
+  if (strcmp (COMMAND,"stop") == 0) {
+    printf ("STOP\n");
+    exit (0);
+  }
+  if (strcmp (COMMAND,"restart") == 0) {
+    printf ("RESTART\n");
+    exit (0);
+  }
+  // Only command left is 'start'
+  uid_t uid=getuid();
+  if (uid != 0) {
+    printf ("Startup of shim must be done by root (uid=0) not by user with uid=%d.\n", uid);
+    exit (1);
+  }
   if (stat (mg_options[5], &check_ssl) < 0)
     {
       /* Disable SSL  by removing any 's' port mg_options and getting rid of the ssl
