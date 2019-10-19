@@ -2233,19 +2233,26 @@ main (int argc, char **argv)
   parse_conf (mg_options);
   // debug_args (mg_options);
 
+  uid_t uid=getuid();
+  FILE *f;
+  int pid;
   // Implement command
   if (strcmp (COMMAND,"status") == 0) {
-    FILE *f;
-    int pid;
-
-    if (!(f=fopen(PIDFILE,"r"))) {
-      printf ("shim is not running.\n");
+    // if no pid file then no running shim
+    f=fopen(PIDFILE,"r");
+    if (f == NULL) {
+      printf ("shim is stopped.\n");
       exit (0);
     }
     fscanf(f,"%d", &pid);
     fclose(f);
-
-    printf ("shim is running as process %d\n", pid);
+    // Existance of /proc/pid means its running
+    snprintf (pbuf, MAX_VARLEN, "/proc/%d", pid);
+    if( access( pbuf, F_OK ) != -1 ) {
+      printf ("shim (pid %d) is running.\n", pid);
+    } else {
+      printf ("shim is stopped.\n");
+    }
     exit (0);
   }
   if (strcmp (COMMAND,"test") == 0) {
@@ -2253,15 +2260,57 @@ main (int argc, char **argv)
     exit (0);
   }
   if (strcmp (COMMAND,"stop") == 0) {
-    printf ("STOP\n");
+      // if no pid file then no running shim
+    f=fopen(PIDFILE,"r");
+    if (f == NULL) {
+      printf ("shim is already stopped.\n");
+      exit (0);
+    }
+    fscanf(f,"%d", &pid);
+    fclose(f);
+    // non-existance of /proc/pid means its not running
+    snprintf (pbuf, MAX_VARLEN, "/proc/%d", pid);
+    if( access( pbuf, F_OK ) == -1 ) {
+      printf ("shim is already stopped.\n");
+      exit (0);
+    }
+    if (uid != 0) {
+      printf ("Stopping shim must be done by root (uid=0).\n");
+      printf("You are not root (uid=%d).\n", uid);
+      exit (1);
+    }
+    printf ("Stopping shim...\n");
+    if (kill(pid,SIGKILL) == -1) {
+      printf ("Unable to stop shim (pid %d).\n", pid);
+      exit (1);
+    }
     exit (0);
   }
   if (strcmp (COMMAND,"restart") == 0) {
-    printf ("RESTART\n");
-    exit (0);
+    // if pid file is present then shim maybe running
+    f=fopen(PIDFILE,"r");
+    if (f != NULL) {
+      fscanf(f,"%d", &pid);
+      fclose(f);
+      // Existance of /proc/pid means shim is really running
+      snprintf (pbuf, MAX_VARLEN, "/proc/%d", pid);
+      if( access( pbuf, F_OK ) != -1 ) {
+	if (uid != 0) {
+	  printf ("Stopping shim must be done by root (uid=0).\n");
+	  printf("You are not root (uid=%d).\n", uid);
+	  exit (1);
+	}
+	// Now kill it
+	if (kill(pid,SIGKILL) == -1) {
+	  printf ("Unable to stop shim (pid %d).\n", pid);
+	  exit (1);
+	}
+      }
+    }
+  // Now that shim is stopped
+  // fall through to start
   }
   // Only command left is 'start'
-  uid_t uid=getuid();
   if (uid != 0) {
     printf ("Startup of shim must be done by root (uid=0) not by user with uid=%d.\n", uid);
     exit (1);
