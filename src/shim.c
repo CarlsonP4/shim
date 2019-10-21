@@ -38,6 +38,7 @@
 #include <omp.h>
 #include <signal.h>
 #include <errno.h>
+#include <pwd.h>
 
 #include "mongoose.h"
 #include "mbedtls/sha512.h"
@@ -175,7 +176,7 @@ omp_lock_t biglock;
 char *PIDFILE;                  // pid file
 char *CONFFILE;                 // shim configuration file
 char *TMPDIR;                   // temporary files go here
-char *USER;                     // user name to run shim under
+char *AS_USER;                  // user name to run shim under
 int MAX_SESSIONS;               // configurable maximum number of concurrent sessions
 int SAVE_INSTANCE_ID;           // which instance ID should run save commands?
 time_t TIMEOUT;                 // session timeout
@@ -2135,8 +2136,8 @@ parse_conf (char **mg_options)
   /* user:         run shim as this user */
   s = iniparser_getstring(ini, ":user", NULL);
   if (s != NULL) {
-    USER = (char *) calloc (PATH_MAX, 1);
-    snprintf (USER, PATH_MAX, s);
+    AS_USER = (char *) calloc (PATH_MAX, 1);
+    snprintf (AS_USER, PATH_MAX, s);
   }
   /* max_sessions: maximum concurrent sessions */
   i = iniparser_getint(ini, ":max_sessions", -1);
@@ -2174,7 +2175,7 @@ debug_args (char **mg_options)
   printf ("scidbhost='%s'\n", SCIDB_HOST);
   printf ("scidbport=%d\n", SCIDB_PORT);
   printf ("tmp='%s'\n", TMPDIR);
-  printf ("user='%s'\n", USER);
+  printf ("user='%s'\n", AS_USER);
   printf ("max_sessions=%d\n", MAX_SESSIONS);
   printf ("timeout=%ju\n", (uintmax_t)TIMEOUT);
   printf ("instance=%d\n", SAVE_INSTANCE_ID);
@@ -2233,6 +2234,7 @@ main (int argc, char **argv)
   USE_AIO = 0;
   COMMAND = "status";
   PIDFILE = DEFAULT_PIDFILE;
+  AS_USER = NULL;
 
   parse_args (argc, argv, &daemonize);
   // debug_args (mg_options);
@@ -2324,7 +2326,7 @@ main (int argc, char **argv)
     printf ("ERROR: Unable to write pid file %s.\n", PIDFILE);
     exit (1);
   }
-  // Here we go
+  // START!
   if (stat (mg_options[5], &check_ssl) < 0)
     {
       /* Disable SSL  by removing any 's' port mg_options and getting rid of the ssl
@@ -2348,6 +2350,8 @@ main (int argc, char **argv)
   k = -1;
   if (daemonize > 0)
     {
+      //
+      struct passwd *pass;
       k = fork ();
       switch (k)
         {
@@ -2361,6 +2365,18 @@ main (int argc, char **argv)
           j = open ("/dev/null", O_RDWR);
           dup (j);
           dup (j);
+	  // If the AS_USER parameter is not set then assume to run the daemon as the present user
+	  if (AS_USER != NULL) {
+	    // If the AS_USER parameter is set then will run daemon as the specified user.
+	    // Set uid and gid to run child with.
+	    pass = getpwnam(AS_USER);
+	    if (!pass) {
+	      printf("Unable to get user %s account information.", AS_USER);
+	      exit (1);
+	    }
+	    setuid(pass->pw_uid);
+	    setgid(pass->pw_gid);
+	  }
           break;
         default:
 	  /* Write out child PID */
