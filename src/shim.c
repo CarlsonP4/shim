@@ -37,6 +37,7 @@
 #include <time.h>
 #include <omp.h>
 #include <signal.h>
+#include <errno.h>
 
 #include "mongoose.h"
 #include "mbedtls/sha512.h"
@@ -62,8 +63,8 @@
 
 #define DEFAULT_SAVE_INSTANCE_ID 0  // default instance that does the saving
 #define DEFAULT_TMPDIR "/tmp"       // Temporary location for I/O buffers
-#define PIDFILE "/var/run/shim.pid"
-#define DEFAULT_CONFFILE "/var/lib/shim/conf"
+#define DEFAULT_PIDFILE             "/var/run/shim.pid"
+#define DEFAULT_CONFFILE            "/var/lib/shim/conf"
 
 #define WEEK 604800             // One week in seconds
 #define DEFAULT_TIMEOUT 60      // Timeout before a session is declared
@@ -164,7 +165,6 @@ char *SCIDB_HOST = "localhost";
 int SCIDB_PORT = 1239;
 session *sessions;              // Fixed pool of web client sessions
 char *docroot;
-static uid_t real_uid;          // For setting uid to logged in user when required
 /* Big common lock used to serialize global operations.
  * Each session also has a separate session lock. All the locks support
  * nesting/recursion.
@@ -172,7 +172,7 @@ static uid_t real_uid;          // For setting uid to logged in user when requir
 omp_lock_t biglock;
 /* Global variables
  */
-char *BASEPATH;
+char *PIDFILE;                  // pid file
 char *CONFFILE;                 // shim configuration file
 char *TMPDIR;                   // temporary files go here
 char *USER;                     // user name to run shim under
@@ -1995,7 +1995,7 @@ void
 parse_args (int argc, char **argv, int *daemonize)
 {
   int c;
-  while ((c = getopt (argc, argv, "hvfc:")) != -1)
+  while ((c = getopt (argc, argv, "hvfc:p:")) != -1)
     {
       switch (c)
         {
@@ -2014,6 +2014,8 @@ parse_args (int argc, char **argv, int *daemonize)
 	    ("     Default is to run as a daemon.\n");
 	  printf
 	    ("  -c Overrides the default configuration file of '%s'.\n", CONFFILE);
+	  printf
+	    ("  -p Overrides the default pid file of '%s'.\n", PIDFILE);
 	  printf
 	    ("\n");
 	  printf
@@ -2038,6 +2040,9 @@ parse_args (int argc, char **argv, int *daemonize)
           break;
 	case 'c':
 	  CONFFILE = optarg;
+	  break;
+	case 'p':
+	  PIDFILE = optarg;
 	  break;
         default:
           break;
@@ -2227,13 +2232,13 @@ main (int argc, char **argv)
   SAVE_INSTANCE_ID = DEFAULT_SAVE_INSTANCE_ID;
   USE_AIO = 0;
   COMMAND = "status";
+  PIDFILE = DEFAULT_PIDFILE;
 
   parse_args (argc, argv, &daemonize);
   // debug_args (mg_options);
   parse_conf (mg_options);
   // debug_args (mg_options);
 
-  uid_t uid=getuid();
   FILE *f;
   int pid;
   // Implement command
@@ -2248,7 +2253,7 @@ main (int argc, char **argv)
     fclose(f);
     // Existance of /proc/pid means its running
     snprintf (pbuf, MAX_VARLEN, "/proc/%d", pid);
-    if( access( pbuf, F_OK ) != -1 ) {
+    if( access( pbuf, F_OK ) == 0 ) {
       printf ("shim (pid %d) is running.\n", pid);
     } else {
       printf ("shim is stopped.\n");
@@ -2270,17 +2275,17 @@ main (int argc, char **argv)
     fclose(f);
     // non-existance of /proc/pid means its not running
     snprintf (pbuf, MAX_VARLEN, "/proc/%d", pid);
-    if( access( pbuf, F_OK ) == -1 ) {
+    if( access( pbuf, F_OK ) != 0 ) {
       printf ("shim is already stopped.\n");
       exit (0);
     }
-    if (uid != 0) {
-      printf ("Stopping shim must be done by root (uid=0).\n");
-      printf("You are not root (uid=%d).\n", uid);
-      exit (1);
-    }
     printf ("Stopping shim...\n");
     if (kill(pid,SIGKILL) == -1) {
+      if (errno == EPERM) {
+	printf ("Unable to stop shim (pid %d).\n", pid);
+	printf ("This process does not have permission to kill the running shim.\n");
+	exit (1);
+      }
       printf ("Unable to stop shim (pid %d).\n", pid);
       exit (1);
     }
@@ -2294,14 +2299,14 @@ main (int argc, char **argv)
       fclose(f);
       // Existance of /proc/pid means shim is really running
       snprintf (pbuf, MAX_VARLEN, "/proc/%d", pid);
-      if( access( pbuf, F_OK ) != -1 ) {
-	if (uid != 0) {
-	  printf ("Stopping shim must be done by root (uid=0).\n");
-	  printf("You are not root (uid=%d).\n", uid);
-	  exit (1);
-	}
+      if( access( pbuf, F_OK ) == 0 ) {
 	// Now kill it
 	if (kill(pid,SIGKILL) == -1) {
+	  if (errno == EPERM) {
+	    printf ("Unable to stop shim (pid %d).\n", pid);
+	    printf ("This process does not have permission to kill the running shim.\n");
+	    exit (1);
+	  }
 	  printf ("Unable to stop shim (pid %d).\n", pid);
 	  exit (1);
 	}
@@ -2311,10 +2316,15 @@ main (int argc, char **argv)
   // fall through to start
   }
   // Only command left is 'start'
-  if (uid != 0) {
-    printf ("Startup of shim must be done by root (uid=0) not by user with uid=%d.\n", uid);
+  // First check if pid file (actually the directory) is writeable by present process
+  // dirname destroys the character array passed to it
+  char PIDFILEDIR[PATH_MAX];
+  strcpy (PIDFILEDIR, PIDFILE);
+  if( access( dirname(PIDFILEDIR), W_OK ) != 0 ) {
+    printf ("ERROR: Unable to write pid file %s.\n", PIDFILE);
     exit (1);
   }
+  // Here we go
   if (stat (mg_options[5], &check_ssl) < 0)
     {
       /* Disable SSL  by removing any 's' port mg_options and getting rid of the ssl
@@ -2332,10 +2342,7 @@ main (int argc, char **argv)
   docroot = mg_options[3];
   sessions = (session *) calloc (MAX_SESSIONS, sizeof (session));
   memset (&callbacks, 0, sizeof (callbacks));
-  real_uid = getuid ();
   signal (SIGTERM, signalHandler);
-
-  BASEPATH = dirname (argv[0]);
 
   /* Daemonize */
   k = -1;
