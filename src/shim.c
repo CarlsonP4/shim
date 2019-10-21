@@ -20,20 +20,20 @@
 */
 
 #define _GNU_SOURCE
-#include <stdio.h>
-#include <limits.h>
-#include <inttypes.h>
-#include <stdlib.h>
-#include <string.h>
+//#include <stdio.h>
+//#include <limits.h>
+//#include <inttypes.h>
+//#include <stdlib.h>
+//#include <string.h>
 #include <ctype.h>
 #include <libgen.h>
-#include <sys/types.h>
-#include <sys/resource.h>
+//#include <sys/types.h>
+//#include <sys/resource.h>
 #include <sys/stat.h>
 #include <syslog.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <unistd.h>
+//#include <unistd.h>
 #include <time.h>
 #include <omp.h>
 #include <signal.h>
