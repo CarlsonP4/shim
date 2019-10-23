@@ -45,7 +45,9 @@ if test $? -ne 0; then
 fi
 if test -n "$(which systemctl 2>/dev/null)"; then
 # SystemD
-  find /opt/scidb/ -name shim_systemd -exec {} \;
+  systemctl daemon-reload
+  systemctl enable shim
+  systemctl start shim
 elif test -n "$(which update-rc.d 2>/dev/null)"; then
 # Ubuntu
   chmod 0755 /etc/init.d/shimsvc
