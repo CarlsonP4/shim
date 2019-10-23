@@ -2383,7 +2383,7 @@ main (int argc, char **argv)
 	  j = open (PIDFILE, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	  if (j > 0)
 	    {
-	      snprintf (pbuf, MAX_VARLEN, "%d            ", (int)k);
+	      sprintf (pbuf, "%d\n", (int)k);
 	      write (j, pbuf, strlen (pbuf));
 	      close (j);
 	    }
