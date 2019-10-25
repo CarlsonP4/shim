@@ -2318,14 +2318,19 @@ main (int argc, char **argv)
   // fall through to start
   }
   // Only command left is 'start'
-  // First check if pid file (actually the directory) is writeable by present process
+  //
+  // If daemonize is true
+  // then check if pid file (actually the directory) is writeable by present process
   // dirname destroys the character array passed to it
-  char PIDFILEDIR[PATH_MAX];
-  strcpy (PIDFILEDIR, PIDFILE);
-  if( access( dirname(PIDFILEDIR), W_OK ) != 0 ) {
-    printf ("ERROR: Unable to write pid file %s.\n", PIDFILE);
-    exit (1);
-  }
+  if (daemonize > 0)
+    {
+      char PIDFILEDIR[PATH_MAX];
+      strcpy (PIDFILEDIR, PIDFILE);
+      if( access( dirname(PIDFILEDIR), W_OK ) != 0 ) {
+	printf ("ERROR: Unable to write pid file %s.\n", PIDFILE);
+	exit (1);
+      }
+    }
   // START!
   if (stat (mg_options[5], &check_ssl) < 0)
     {
