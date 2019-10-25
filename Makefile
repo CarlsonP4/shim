@@ -24,7 +24,7 @@ help:
 	@echo
 	@echo "The remaining options may require setting the SCIDB environment"
 	@echo "variable to the path of the target SciDB installation. For example,"
-	@echo "make SCIDB=/opt/scidb/19.3  install"
+	@echo "make SCIDB=$(SCIDB) install"
 	@echo
 	@echo "make install   (install program and files)"
 	@echo "make uninstall (remove program and files)"

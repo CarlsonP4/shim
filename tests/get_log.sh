@@ -6,18 +6,29 @@
 
 HOST=localhost
 PORT=8088
+SHIM_DIR=/tmp/shim
+MYDIR=$(dirname $0)
+
+# Get shim's absolute location
+# This assumes it is one directory up from this script
+pushd $MYDIR/../ > /dev/null 2>&1
+SHIM=$(pwd)/shim
+popd > /dev/null 2>&1
+
 HTTP_AUTH=homer:elmo
 
-SHIM_DIR=$(mktemp --directory)
 CURL="curl --digest --user $HTTP_AUTH --fail --silent"
 SHIM_URL="http://$HOST:$PORT"
 
 set -o errexit
 
 function cleanup {
-    ## Cleanup
-    kill -s SIGKILL %1
-    rm --recursive $SHIM_DIR
+  ## Cleanup
+  echo "FAIL"
+  kill -s SIGKILL %1
+  wait %1 2>/dev/null || true
+  rm --recursive $SHIM_DIR
+  exit 1
 }
 
 trap cleanup EXIT
@@ -26,7 +37,7 @@ trap cleanup EXIT
 ## Setup
 mkdir --parents $SHIM_DIR/wwwroot
 echo $HTTP_AUTH > $SHIM_DIR/wwwroot/.htpasswd
-./shim -p $PORT -r $SHIM_DIR/wwwroot -f &
+$SHIM -c $MYDIR/conf -f start 2>/dev/null &
 sleep 1
 
 
