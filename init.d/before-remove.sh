@@ -8,7 +8,7 @@ if test -n "$(which systemctl 2>/dev/null)"; then
 # SystemD
   systemctl -q stop shim 2>/dev/null || true
   systemctl -q disable  shim 2>/dev/null || true
-  rm -f /usr/lib/systemd/system/shim.service
+  rm -f /lib/systemd/system/shim.service
   systemctl -q daemon-reload 2>/dev/null || true
 elif test -n "$(which update-rc.d 2>/dev/null)"; then
 # Ubuntu
