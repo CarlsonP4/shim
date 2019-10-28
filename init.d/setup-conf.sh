@@ -32,7 +32,7 @@ tmp=$TMP
 user=$SCIDBUSER
 #max_sessions=50
 #timeout=60
-#aio=1
+#aio=0
 EOF
 else
 # Write out an example config file to /var/lib/shim/conf completely commented out
@@ -51,7 +51,7 @@ cat >/var/lib/shim/conf << EOF
 #user=scidb
 #max_sessions=50
 #timeout=60
-#aio=1
+#aio=0
 EOF
 fi
 
