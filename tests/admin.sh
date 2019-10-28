@@ -130,5 +130,6 @@ test "$res" == "200"
 res=$($CURL $NO_OUT "$SHIM_URL/release_session?id=$ID")
 test "$res" == "200"
 
+
 echo "PASS"
 exit 0
