@@ -10,10 +10,10 @@ INS=0
 TMP=/tmp
 s=`ps aux | grep SciDB  | grep "dbname" | head -n 1`
 if test -n "$s"; then
-  PORT=`echo "$s" | sed -e "s/.*-p //;s/ .*//"`
-  INS=`echo "$s" | sed -e "s/.*-s //;s/ .*//" | sed -e "s@.*/[0-9]*/\([0-9]*\)/.*@\1@"`
+  PORT=`echo "$s" | sed -e "s/.*--port //;s/ .*//"`
+  INS=`echo "$s" | sed -e "s/.*--storage //;s/ .*//" | sed -e "s@.*/[0-9]*/\([0-9]*\)/.*@\1@"`
   INS=$(( $INS ))
-  TMP=`echo "$s" | sed -e "s/.*-s //;s/ .*//"`
+  TMP=`echo "$s" | sed -e "s/.*--storage //;s/ .*//"`
   TMP=`dirname $TMP`
   SCIDBUSER=`ps axfo user:64,cmd | grep SciDB | grep dbname | head -n 1 | cut -d ' ' -f 1`
 # Write out an example config file to /var/lib/shim/conf using running scidb parameters
