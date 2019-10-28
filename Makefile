@@ -20,6 +20,7 @@ client:
 	$(MAKE) -C src client
 
 help:
+	@if test ! -d "$(SCIDB)"; then echo  "Can't find the scidb executable. Try explicitly setting the SCIDB variable, for example: 'make SCIDB=/opt/scidb/19.3 $@'"; exit 1; fi
 	@echo "make shim      (compile and link)"
 	@echo
 	@echo "The remaining options may require setting the SCIDB environment"
@@ -38,7 +39,7 @@ help:
 	@echo "Other tests are available. Read the contents of Makefile for details."
 
 install: shim stop-service
-	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/19.3 install"; exit 1; fi
+	@if test ! -d "$(SCIDB)"; then echo  "Can't find the scidb executable. Try explicitly setting the SCIDB variable, for example: 'make SCIDB=/opt/scidb/19.3 $@'"; exit 1; fi
 	@mkdir -p "$(DESTDIR)$(SCIDB)/bin"
 	cp shim "$(DESTDIR)$(SCIDB)/bin"
 	mkdir -p "$(DESTDIR)/var/lib/shim"
@@ -48,36 +49,40 @@ install: shim stop-service
 	@if test -d $(DESTDIR)/usr/local/share/man/man1;then cp man/shim.1 $(DESTDIR)/usr/local/share/man/man1/;fi
 
 uninstall: stop-service
-	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example:\n\nmake SCIDB=/opt/scidb/19.3 uninstall"; exit 1; fi
+	@if test ! -d "$(SCIDB)"; then echo  "Can't find the scidb executable. Try explicitly setting the SCIDB variable, for example: 'make SCIDB=/opt/scidb/19.3 $@'"; exit 1; fi
 	rm -f "$(SCIDB)/bin/shim"
 	rm -rf /var/lib/shim
 	rm -f /usr/local/share/man/man1/shim.1
 
 stop-service:
-	- @if test -n "$$(which systemctl 2>/dev/null)";   then systemctl stop shim 2>/dev/null||true; systemctl disable shim 2>/dev/null||true; fi
-	- @if test -n "$$(which update-rc.d 2>/dev/null)"; then update-rc.d -f shimsvc remove 2>/dev/null||true; /etc/init.d/shimsvc stop 2>/dev/null||true; fi
-	- @if test -n "$$(which chkconfig 2>/dev/null)";   then chkconfig --del shimsvc 2>/dev/null||true; chkconfig shimsvc off 2>/dev/null||true; fi
+	- @if test -n "$$(which systemctl 2>/dev/null)";   then systemctl stop shim 2>/dev/null||true; fi
+	- @if test -n "$$(which update-rc.d 2>/dev/null)"; then service shimsvc stop 2>/dev/null||true; fi
+	- @if test -n "$$(which chkconfig 2>/dev/null)";   then service shimsvc stop 2>/dev/null||true; fi
 
 service: install
+	@if test ! -d "$(SCIDB)"; then echo  "Can't find the scidb executable. Try explicitly setting the SCIDB variable, for example: 'make SCIDB=/opt/scidb/19.3 $@'"; exit 1; fi
 # systemctl
+	- @if test -n "$$(which systemctl 2>/dev/null)"; then systemctl disable shim 2>/dev/null||true; fi
 	- @if test -n "$$(which systemctl 2>/dev/null)"; then sed "s!XXX_SCIDB_VER_XXX!$(SCIDB_VERSION)!g" init.d/shim.service > /lib/systemd/system/shim.service; fi
 	- @if test -n "$$(which systemctl 2>/dev/null)"; then systemctl daemon-reload; systemctl enable shim; systemctl start shim; fi
 # update-rc
+	- @if test -n "$$(which update-rc.d 2>/dev/null)"; then update-rc.d -f shimsvc remove 2>/dev/null||true; fi
 	- @if test -n "$$(which update-rc.d 2>/dev/null)"; then sed "s!XXX_SCIDB_VER_XXX!$(SCIDB_VERSION)!g" init.d/shimsvc > /etc/init.d/shimsvc; fi
-	- @if test -n "$$(which update-rc.d 2>/dev/null)"; then chmod 0755 /etc/init.d/shimsvc; update-rc.d shimsvc defaults; /etc/init.d/shimsvc start; fi
+	- @if test -n "$$(which update-rc.d 2>/dev/null)"; then chmod 0755 /etc/init.d/shimsvc; update-rc.d shimsvc defaults; service shimsvc start; fi
 # init.d
+	- @if test -n "$$(which chkconfig 2>/dev/null)";   then chkconfig --del shimsvc 2>/dev/null||true; fi
 	- @if test -n "$$(which chkconfig 2>/dev/null)"; then sed "s!XXX_SCIDB_VER_XXX!$(SCIDB_VERSION)!g" init.d/shimsvc > /etc/init.d/shimsvc; fi
-	- @if test -n "$$(which chkconfig 2>/dev/null)"; then chmod 0755 /etc/init.d/shimsvc; chkconfig --add shimsvc; chkconfig shimsvc on; fi
+	- @if test -n "$$(which chkconfig 2>/dev/null)"; then chmod 0755 /etc/init.d/shimsvc; chkconfig --add shimsvc; service shimsvc start; fi
 
 unservice: stop-service
-	- @if test -n "$$(which systemctl 2>/dev/null)"; then rm -f /lib/systemd/system/shim.service; systemctl daemon-reload; fi
-	- @if test -n "$$(which update-rc.d 2>/dev/null)"; then rm -f /etc/init.d/shimsvc; fi
-	- @if test -n "$$(which chkconfig 2>/dev/null)"; then rm -f /etc/init.d/shimsvc; fi
+	- @if test -n "$$(which systemctl 2>/dev/null)";   then systemctl disable shim 2>/dev/null||true; rm -f /lib/systemd/system/shim.service; systemctl daemon-reload; fi
+	- @if test -n "$$(which update-rc.d 2>/dev/null)"; then update-rc.d -f shimsvc remove 2>/dev/null||true; rm -f /etc/init.d/shimsvc; fi
+	- @if test -n "$$(which chkconfig 2>/dev/null)";   then chkconfig --del shimsvc 2>/dev/null||true; rm -f /etc/init.d/shimsvc; fi
 	$(MAKE) uninstall
 
 deb-pkg: shim
 	@if test -z "$$(which fpm 2>/dev/null)"; then echo "Error: Package building requires fpm, try running gem install fpm."; exit 1;fi
-	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/19.3 install"; exit 1; fi
+	@if test ! -d "$(SCIDB)"; then echo  "Can't find the scidb executable. Try explicitly setting the SCIDB variable, for example: 'make SCIDB=/opt/scidb/19.3 $@'"; exit 1; fi
 	mkdir -p pkgroot/$(SCIDB)/bin
 	cp shim "pkgroot/$(SCIDB)/bin"
 	mkdir -p pkgroot/etc/init.d
@@ -91,7 +96,7 @@ deb-pkg: shim
 
 rpm-pkg: shim
 	@if test -z "$$(which fpm 2>/dev/null)"; then echo "Error: Package building requires fpm, try running gem install fpm."; exit 1;fi
-	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/19.3 install"; exit 1; fi
+	@if test ! -d "$(SCIDB)"; then echo  "Can't find the scidb executable. Try explicitly setting the SCIDB variable, for example: 'make SCIDB=/opt/scidb/19.3 $@'"; exit 1; fi
 	mkdir -p pkgroot/$(SCIDB)/bin
 	cp shim "pkgroot/$(SCIDB)/bin"
 	mkdir -p pkgroot/etc/init.d
