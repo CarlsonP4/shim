@@ -21,11 +21,11 @@ This is the fastest/easiest way to install shim as a system service. We provide 
 
 **SciDB on Ubuntu 14.04**
 
-[Donwload](http://paradigm4.github.io/shim/#ubuntu)
+[Download](http://paradigm4.github.io/shim/#ubuntu)
 
 ```sh
 # Install with:
-gdebi shim_18.1_amd64.deb
+gdebi shim_19.3_amd64.deb
 
 # Uninstall with (be sure to uninstall any existing copy before re-installing shim):
 apt-get remove shim
@@ -39,7 +39,7 @@ apt-get remove shim
 # shim depends on a few libraries. If installation fails you may need to:
 yum install libgomp openssl-devel
 # Install with:
-rpm -i shim-18.1-1.x86_64.rpm
+rpm -i shim-19.3-1.x86_64.rpm
 
 # Uninstall with:
 yum remove shim
@@ -47,19 +47,19 @@ yum remove shim
 
 ## LD_LIBRARY_PATH issues
 
-By default shim installs into `/opt/scidb/18.1/bin` and expects the sibling directory `lib` to contain the `libscidbclient.so` library. This may present a problem if SciDB is installed in a different location. One way to go around the issue is by creating a symlink. For example:
+By default shim installs into `/opt/scidb/19.3/bin` and expects the sibling directory `lib` to contain the `libscidbclient.so` library. This may present a problem if SciDB is installed in a different location. One way to go around the issue is by creating a symlink. For example:
 ```bash
 ## Problem:
 $ sudo service shimsvc start
 Starting shim
-/opt/scidb/18.1/bin/shim: error while loading shared libraries: libscidbclient.so: cannot open shared object file: No such file or directory
+/opt/scidb/19.3/bin/shim: error while loading shared libraries: libscidbclient.so: cannot open shared object file: No such file or directory
 
 ## Solution: supposing SciDB was installed at ~/scidb
-$ sudo ln -s ~/scidb/lib /opt/scidb/18.1/lib
+$ sudo ln -s ~/scidb/lib /opt/scidb/19.3/lib
 $ sudo service shimsvc start
 Starting shim
 ```
-You could also edit /etc/init.d/shimsvc or /usr/lib/systemd/system/shim.service, or use other environment/path tricks.
+You could also edit /etc/init.d/shimsvc or /lib/systemd/system/shim.service, or use other environment/path tricks.
 
 ## Configuring  shim
 
@@ -95,7 +95,7 @@ is running under.
 * `timeout` Timeout after which an inactive HTTP session may be declared dead and reclaimed for use elsewhere.
 * `instance` Which SciDB instance should save data to files or pipes? This instance must have write permission to the `tmp` directory.
 
-Restart shim to effect option changes with either `/etc/init.d/shimsvc restart` or `/opt/scidb/18.1/systemd/shim_systemd`, whichever is appropriate.
+Restart shim to effect option changes with either `/etc/init.d/shimsvc restart` or `/opt/scidb/19.3/systemd/shim_systemd`, whichever is appropriate.
 
 ## Note on the SSL Key Certificate Configuration
 
@@ -135,7 +135,7 @@ systemctl shim start
 ## Uninstall
 We explicitly define our SCIDB home directory for Make in the example below:
 ```
-sudo make SCIDB=/opt/scidb/18.1 uninstall
+sudo make SCIDB=/opt/scidb/19.3 uninstall
 ```
 
 ## Log files
@@ -152,16 +152,16 @@ make
 sudo make install
 
 # Or, if SCIDB is not in the PATH, can set a Make variable SCIDB that points
-# to the SCIDB home directory, for example for version 18.1:
+# to the SCIDB home directory, for example for version 19.3:
 
-make SCIDB=/opt/scidb/18.1
-sudo make SCIDB=/opt/scidb/18.1 install
+make SCIDB=/opt/scidb/19.3
+sudo make SCIDB=/opt/scidb/19.3 install
 
 ```
 ## Optionally install as a service
 You can install shim as a system service so that it just runs all the time with:
 ```
-sudo make SCIDB=/opt/scidb/18.1 service
+sudo make SCIDB=/opt/scidb/19.3 service
 ```
 If you install shim as a service and want to change its default options, for example the default HTTP port or port to talk to SciDB on, you'll need to edit the shim configuration file. See the discussion of command line parameters below.
 
