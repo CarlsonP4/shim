@@ -28,7 +28,7 @@ curl -f -s "http://${HOST}:${PORT}/execute_query?id=${id}&query=list('functions'
 curl -f -s "http://${HOST}:${PORT}/read_lines?id=${id}&n=0" >/dev/null  || fail
 curl -f -s "http://${HOST}:${PORT}/release_session?id=${id}" >/dev/null  || fail
 
-echo "OK"
+echo "PASS"
 kill -s SIGKILL %1
 wait %1 2>/dev/null || true
 rm --recursive $SHIM_DIR

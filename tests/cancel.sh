@@ -81,6 +81,6 @@ test "$res" == "200"
 
 test `wc --lines $SHIM_DIR/out | cut --delimiter=" " --fields=1` -eq 0
 
-
+echo ""
 echo "PASS"
 exit 0

@@ -33,7 +33,7 @@ t2=$(date +"%s.%N")
 
 
 x=$(echo "500 / ($t2 - $t1)" | bc)
-echo "OK (about ${x} MB/s)"
+echo "PASS (about ${x} MB/s)"
 kill -s SIGKILL %1
 wait %1 2>/dev/null || true
 rm --recursive $SHIM_DIR

@@ -83,7 +83,7 @@ test "$u1" -eq "$u2" || fail
 curl -f -s $curl_auth "$curl_url/release_session?id=${id}" >/dev/null || fail
 x=$(echo "${bs%?} * $count / ($t2 - $t1)" | bc)
 
-echo "OK (about ${x} MB/s)"
+echo "PASS (about ${x} MB/s)"
 kill -s SIGKILL %1
 wait %1 2>/dev/null || true
 rm --recursive $SHIM_DIR

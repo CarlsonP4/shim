@@ -24,11 +24,9 @@ set -o errexit
 
 function cleanup {
   ## Cleanup
-  echo "FAIL"
   kill -s SIGKILL %1
   wait %1 2>/dev/null || true
   rm --recursive $SHIM_DIR
-  exit 1
 }
 
 trap cleanup EXIT

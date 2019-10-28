@@ -69,7 +69,7 @@ do
 
     if [ "$res" == "200" ]
     then
-        echo "OK"
+        echo "PASS"
         ID=$(<$SHIM_DIR/id)
         $CURL                                                                   \
             $NO_OUT                                                             \
@@ -111,7 +111,7 @@ do
         echo -n "Cancel admin $QID..."
         res=$($CURL $NO_OUT "$SHIM_URL/execute_query?id=$ID&query=cancel($QID)")
         test "$res" == "200" -o "$res" == "406"
-        echo "OK"
+        echo "PASS"
     done < $SHIM_DIR/out
 
     if [ `wc --lines $SHIM_DIR/out | cut --delimiter=" " --fields=1` -eq 0 ]

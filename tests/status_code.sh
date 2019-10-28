@@ -20,7 +20,7 @@ HTTP_AUTH=homer:elmo
 CURL="curl --digest --user $HTTP_AUTH --write-out %{http_code} --silent"
 NO_OUT="--output /dev/null"
 SHIM_URL="http://$HOST:$PORT"
-#SCIDB_AUTH="user=root&password=Paradigm4"
+# SCIDB_AUTH="user=root&password=Paradigm4"
 
 set -o errexit
 

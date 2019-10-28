@@ -48,7 +48,7 @@ ID=$(<$SHIM_DIR/id)
 res=$($CURL $NO_OUT "$SHIM_URL/execute_query?id=$ID&query=list()")
 test "$res" == "200"
 
-pkill SciDB-0-0-scidb
+pkill SciDB-0-0
 
 res=$($CURL $NO_OUT "$SHIM_URL/execute_query?id=$ID&query=list()")
 test "$res" == "502"

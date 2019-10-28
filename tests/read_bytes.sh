@@ -31,7 +31,7 @@ while test $x -lt 40;do
 done
 curl -f -s "http://${host}:${port}/release_session?id=${id}" >/dev/null  || fail
 
-echo "OK"
+echo "PASS"
 kill -s SIGKILL %1
 wait %1 2>/dev/null || true
 rm --recursive $SHIM_DIR
