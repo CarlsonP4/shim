@@ -63,26 +63,26 @@ You could also edit /etc/init.d/shimsvc or /lib/systemd/system/shim.service, or 
 
 ## Configuring  shim
 
-The `shim` service script consults the `/var/lib/shim/conf` file for
-configuration options. The default configuration options are shown below,
-and optional aut-configured values are indicated. Those values are set if
-you install `shim` from a binary rpm or deb package.
+The `shim` service reads the `/var/lib/shim/conf` file for configuration options.
+The default configuration options are shown commented out below.
+Some of these options are configured if you install `shim` from a binary rpm or deb package,
+taking their values from the running SciDB.
 ```
-auth=login
-ports=8080,8083s
-scidbhost=localhost
-scidbport=1239 (or auto-configured by apt/yum to a local SciDB port)
-user=root
-tmp=/tmp  (or auto-configured by apt/yum to local SciDB storage directory)
-max_sessions=50
-timeout=60
-instance=0  (or auto-configured by apt/yum to a local SciDB instance ID)
+#ports=8080,8083s
+#scidbhost=localhost
+#scidbport=1239 (or configured by apt/yum to a local SciDB port)
+#tmp=/tmp (or configured by apt/yum to the local SciDB storage)
+#user=scidb (or configured by apt/yum to the local SciDB user)
+#max_sessions=50
+#timeout=60
+#instance=0 (or configured by apt/yum to a local SciDB instance ID)
+#aio=0
+
 
 ```
 If an option is missing from the config file, the default value will be used.
 The options are:
 
-* `auth` A PAM authentication method (limited to 'login' for now).
 * `ports` A comma-delimited list of HTTP listening ports. Append the lowercase
 letter 's' to indicate SSL encryption.
 * `scidbhost` The host on which SciDB runs.
@@ -95,7 +95,7 @@ is running under.
 * `timeout` Timeout after which an inactive HTTP session may be declared dead and reclaimed for use elsewhere.
 * `instance` Which SciDB instance should save data to files or pipes? This instance must have write permission to the `tmp` directory.
 
-Restart shim to effect option changes with either `/etc/init.d/shimsvc restart` or `/opt/scidb/19.3/systemd/shim_systemd`, whichever is appropriate.
+Restart shim to effect option changes with either `service shimsvc restart` or `systemctl restart shim`, whichever is appropriate.
 
 ## Note on the SSL Key Certificate Configuration
 
@@ -109,22 +109,16 @@ permissions to the SSL certificate is particularly important for general
 machines with many untrusted users (an unlikely setting for an installation of
 SciDB).
 
-You can alternatively run `shim` from the command line and use command line
-switches to set the configuration options. Run `shim -h` to see a full list
-of options. When you run shim from a non-standard location, the program
-expects to find the ssl_cert.pem file one directory above the wwwroot
-directory.
-
 ## Usage
 ```
-shim [-h] [-f] [-p <http port>] [-r <document root>] [-s <scidb port>]
+shim [-h] [-f]
 ```
 where, -f means run in the foreground (defaults to background), -h means help.
 
 If you installed the service version, then you can control when shim is running with the appropriate mechanism, for example:
 ```
-/etc/init.d/shimsvc stop
-/etc/init.d/shimsvc start
+service shimsvc stop
+service shimsvc start
 
 or
 
@@ -166,7 +160,7 @@ sudo make SCIDB=/opt/scidb/19.3 service
 If you install shim as a service and want to change its default options, for example the default HTTP port or port to talk to SciDB on, you'll need to edit the shim configuration file. See the discussion of command line parameters below.
 
 ### Optionally build deb or rpm packages
-You can build the service version of shim into packages for Ubuntu 12.04 or RHEL/CentOS 6 with
+You can build the service version of shim into packages for Ubuntu or RHEL/CentOS with
 ```
 make deb-pkg
 make rpm-pkg
