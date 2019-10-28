@@ -61,7 +61,7 @@ Starting shim
 ```
 You could also edit /etc/init.d/shimsvc or /lib/systemd/system/shim.service, or use other environment/path tricks.
 
-## Configuring  shim
+## Configuring shim
 
 The `shim` service reads the `/var/lib/shim/conf` file for configuration options.
 The default configuration options are shown commented out below.
@@ -158,7 +158,8 @@ You can install shim as a system service so that it just runs all the time with:
 ```
 sudo make SCIDB=/opt/scidb/19.3 service
 ```
-If you install shim as a service and want to change its default options, for example the default HTTP port or port to talk to SciDB on, you'll need to edit the shim configuration file. See the discussion of command line parameters below.
+If you install shim as a service and want to change its default options, for example the default HTTP port or port to talk to SciDB on, you'll need to edit the shim configuration file.
+See the discussion of Configuring shim above.
 
 ### Optionally build deb or rpm packages
 You can build the service version of shim into packages for Ubuntu or RHEL/CentOS with
