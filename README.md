@@ -126,17 +126,11 @@ systemctl shim stop
 systemctl shim start
 ```
 
-## Uninstall
-We explicitly define our SCIDB home directory for Make in the example below:
-```
-sudo make SCIDB=/opt/scidb/19.3 uninstall
-```
-
 ## Log files
 Shim prints messages to the system log. The syslog file location varies, but can usually be found in /var/log/syslog or /var/log/messages.
 
 ## Manual Building
-Note that because shim is a SciDB client it needs the boost, zlib, log4cpp and log4cxx development libraries installed to compile. And because shim now uses PAM authentication, you'll now need the PAM development libraries for your system installed too. You also optionally need an SSL development library if you want to support TLS.
+Note that because shim is a SciDB client it needs the boost, zlib, log4cpp and log4cxx development libraries installed to compile. You also optionally need an SSL development library if you want to support TLS.
 
 A good way to satisfy most of the dependencies is to install the SciDB Development Packages as described in the [dev_tools documentation](https://github.com/paradigm4/dev_tools#required-packages-scidb-181).
 
@@ -152,6 +146,12 @@ make SCIDB=/opt/scidb/19.3
 sudo make SCIDB=/opt/scidb/19.3 install
 
 ```
+## Uninstall
+We explicitly define our SCIDB home directory for Make in the example below:
+```
+sudo make SCIDB=/opt/scidb/19.3 uninstall
+```
+
 ## Optionally install as a service
 You can install shim as a system service so that it just runs all the time with:
 ```
