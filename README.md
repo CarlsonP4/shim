@@ -87,13 +87,14 @@ The options are:
 letter 's' to indicate SSL encryption.
 * `scidbhost` The host on which SciDB runs.
 * `scidbport` The port to talk to SciDB on.
+* `tmp` Temporary I/O directory used on the server.
 * `user` The user that the shim service runs under. Shim can run as a non-root
 user, but then SSL authenticated port logins are limited to the user that shim
 is running under.
-* `tmp` Temporary I/O directory used on the server.
 * `max_sessions` Maximum number of concurrent HTTP sessions.
 * `timeout` Timeout after which an inactive HTTP session may be declared dead and reclaimed for use elsewhere.
 * `instance` Which SciDB instance should save data to files or pipes? This instance must have write permission to the `tmp` directory.
+* `aio` Enable fast save using the SciDB accelerated_io_tools (AIO) plugin.
 
 Restart shim to effect option changes with either `service shimsvc restart` or `systemctl restart shim`, whichever is appropriate.
 
