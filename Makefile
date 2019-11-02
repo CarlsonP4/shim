@@ -55,27 +55,27 @@ uninstall: stop-service
 	rm -f /usr/local/share/man/man1/shim.1
 
 stop-service:
-	- @if test -n "$$(which systemctl 2>/dev/null)";   then systemctl stop shim 2>/dev/null||true; fi
+	- @if test -n "$$(which systemctl 2>/dev/null)";   then systemctl stop shimsvc 2>/dev/null||true; fi
 	- @if test -n "$$(which update-rc.d 2>/dev/null)"; then service shimsvc stop 2>/dev/null||true; fi
 	- @if test -n "$$(which chkconfig 2>/dev/null)";   then service shimsvc stop 2>/dev/null||true; fi
 
 service: install
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find the scidb executable. Try explicitly setting the SCIDB variable, for example: 'make SCIDB=/opt/scidb/19.3 $@'"; exit 1; fi
 # systemctl
-	- @if test -n "$$(which systemctl 2>/dev/null)"; then systemctl disable shim 2>/dev/null||true; fi
-	- @if test -n "$$(which systemctl 2>/dev/null)"; then sed "s!XXX_SCIDB_VER_XXX!$(SCIDB_VERSION)!g" init.d/shim.service > /lib/systemd/system/shim.service; fi
-	- @if test -n "$$(which systemctl 2>/dev/null)"; then systemctl daemon-reload; systemctl enable shim; systemctl start shim; fi
+	- @if test -n "$$(which systemctl 2>/dev/null)"; then systemctl disable shimsvc 2>/dev/null||true; fi
+	- @if test -n "$$(which systemctl 2>/dev/null)"; then sed "s!XXX_SCIDB_VER_XXX!$(SCIDB_VERSION)!g" init.d/shimvc.service > /lib/systemd/system/shimsvc.service; fi
+	- @if test -n "$$(which systemctl 2>/dev/null)"; then systemctl daemon-reload; systemctl enable shimsvc; systemctl start shimsvc; fi
 # update-rc
 	- @if test -n "$$(which update-rc.d 2>/dev/null)"; then update-rc.d -f shimsvc remove 2>/dev/null||true; fi
-	- @if test -n "$$(which update-rc.d 2>/dev/null)"; then sed "s!XXX_SCIDB_VER_XXX!$(SCIDB_VERSION)!g" init.d/shimsvc > /etc/init.d/shimsvc; fi
+	- @if test -n "$$(which update-rc.d 2>/dev/null)"; then sed "s!XXX_SCIDB_VER_XXX!$(SCIDB_VERSION)!g" init.d/shimsvc.initd > /etc/init.d/shimsvc; fi
 	- @if test -n "$$(which update-rc.d 2>/dev/null)"; then chmod 0755 /etc/init.d/shimsvc; update-rc.d shimsvc defaults; service shimsvc start; fi
 # init.d
-	- @if test -n "$$(which chkconfig 2>/dev/null)";   then chkconfig --del shimsvc 2>/dev/null||true; fi
-	- @if test -n "$$(which chkconfig 2>/dev/null)"; then sed "s!XXX_SCIDB_VER_XXX!$(SCIDB_VERSION)!g" init.d/shimsvc > /etc/init.d/shimsvc; fi
+	- @if test -n "$$(which chkconfig 2>/dev/null)"; then chkconfig --del shimsvc 2>/dev/null||true; fi
+	- @if test -n "$$(which chkconfig 2>/dev/null)"; then sed "s!XXX_SCIDB_VER_XXX!$(SCIDB_VERSION)!g" init.d/shimsvc.initd > /etc/init.d/shimsvc; fi
 	- @if test -n "$$(which chkconfig 2>/dev/null)"; then chmod 0755 /etc/init.d/shimsvc; chkconfig --add shimsvc; service shimsvc start; fi
 
 unservice: stop-service
-	- @if test -n "$$(which systemctl 2>/dev/null)";   then systemctl disable shim 2>/dev/null||true; rm -f /lib/systemd/system/shim.service; systemctl daemon-reload; fi
+	- @if test -n "$$(which systemctl 2>/dev/null)";   then systemctl disable shimsvc 2>/dev/null||true; rm -f /lib/systemd/system/shimsvc.service; systemctl daemon-reload; fi
 	- @if test -n "$$(which update-rc.d 2>/dev/null)"; then update-rc.d -f shimsvc remove 2>/dev/null||true; rm -f /etc/init.d/shimsvc; fi
 	- @if test -n "$$(which chkconfig 2>/dev/null)";   then chkconfig --del shimsvc 2>/dev/null||true; rm -f /etc/init.d/shimsvc; fi
 	$(MAKE) uninstall
@@ -83,30 +83,40 @@ unservice: stop-service
 deb-pkg: shim
 	@if test -z "$$(which fpm 2>/dev/null)"; then echo "Error: Package building requires fpm, try running gem install fpm."; exit 1;fi
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find the scidb executable. Try explicitly setting the SCIDB variable, for example: 'make SCIDB=/opt/scidb/19.3 $@'"; exit 1; fi
+	rm -rf pkgroot
 	mkdir -p pkgroot/$(SCIDB)/bin
 	cp shim "pkgroot/$(SCIDB)/bin"
-	mkdir -p pkgroot/etc/init.d
-	cp init.d/shimsvc pkgroot/etc/init.d
+	mkdir -p pkgroot/$(SCIDB)/shim
+	sed "s!XXX_SCIDB_VER_XXX!$(SCIDB_VERSION)!g" init.d/after-install.sh > pkgroot/$(SCIDB)/shim/after-install.sh
+	cp init.d/before-remove.sh pkgroot/$(SCIDB)/shim
+	cp init.d/setup-conf.sh pkgroot/$(SCIDB)/shim
+	sed "s!XXX_SCIDB_VER_XXX!$(SCIDB_VERSION)!g" init.d/shimsvc.service > pkgroot/$(SCIDB)/shim/shimsvc.service
+	sed "s!XXX_SCIDB_VER_XXX!$(SCIDB_VERSION)!g" init.d/shimsvc.initd > pkgroot/$(SCIDB)/shim/shimsvc.initd
 	mkdir -p pkgroot/var/lib/shim
 	cp -aR wwwroot pkgroot/var/lib/shim/
 	chmod -R 755 pkgroot/var/lib/shim
 	mkdir -p pkgroot/usr/local/share/man/man1
 	@if test -d /usr/local/share/man/man1;then cp man/shim.1 pkgroot/usr/local/share/man/man1/;fi
-	fpm -s dir -t deb -n shim --vendor Paradigm4 -d libssl-dev --license AGPLv3 -m "<blewis@paradigm4.com>" --url "https://github.com/Paradigm4/shim" --description "Unofficial SciDB HTTP service" --provides "shim" -v $$(basename $(SCIDB)) --after-install init.d/after-install.sh --before-remove init.d/before-remove.sh -C pkgroot opt usr var etc/init.d
+	fpm -s dir -t deb -n shim --vendor Paradigm4 -d libssl-dev --license AGPLv3 -m "<blewis@paradigm4.com>" --url "https://github.com/Paradigm4/shim" --description "Unofficial SciDB HTTP service" --provides "shim" -v $$(basename $(SCIDB)) --after-install pkgroot/$(SCIDB)/shim/after-install.sh --before-remove init.d/before-remove.sh -C pkgroot opt usr var
 
 rpm-pkg: shim
 	@if test -z "$$(which fpm 2>/dev/null)"; then echo "Error: Package building requires fpm, try running gem install fpm."; exit 1;fi
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find the scidb executable. Try explicitly setting the SCIDB variable, for example: 'make SCIDB=/opt/scidb/19.3 $@'"; exit 1; fi
+	rm -rf pkgroot *.rpm
 	mkdir -p pkgroot/$(SCIDB)/bin
 	cp shim "pkgroot/$(SCIDB)/bin"
-	mkdir -p pkgroot/etc/init.d
-	cp init.d/shimsvc pkgroot/etc/init.d
+	mkdir -p pkgroot/$(SCIDB)/shim
+	sed "s!XXX_SCIDB_VER_XXX!$(SCIDB_VERSION)!g" init.d/after-install.sh > pkgroot/$(SCIDB)/shim/after-install.sh
+	cp init.d/before-remove.sh pkgroot/$(SCIDB)/shim
+	cp init.d/setup-conf.sh pkgroot/$(SCIDB)/shim
+	sed "s!XXX_SCIDB_VER_XXX!$(SCIDB_VERSION)!g" init.d/shimsvc.service > pkgroot/$(SCIDB)/shim/shimsvc.service
+	sed "s!XXX_SCIDB_VER_XXX!$(SCIDB_VERSION)!g" init.d/shimsvc.initd > pkgroot/$(SCIDB)/shim/shimsvc.initd
 	mkdir -p pkgroot/var/lib/shim
 	cp -aR wwwroot pkgroot/var/lib/shim/
 	chmod -R 755 pkgroot/var/lib/shim
 	mkdir -p pkgroot/usr/local/share/man/man1
 	@if test -d /usr/local/share/man/man1;then cp man/shim.1 pkgroot/usr/local/share/man/man1/;fi
-	fpm -s dir -t rpm -n shim -d "openssl-devel" --vendor Paradigm4 --license AGPLv3 -m "<blewis@paradigm4.com>" --url "https://github.com/Paradigm4/shim" --description "Unofficial SciDB HTTP service" --provides "shim" -v $$(basename $(SCIDB)) --after-install init.d/after-install.sh --before-remove init.d/before-remove.sh -C pkgroot opt usr var etc/init.d
+	fpm -s dir -t rpm -n shim -d "openssl-devel" --vendor Paradigm4 --license AGPLv3 -m "<blewis@paradigm4.com>" --url "https://github.com/Paradigm4/shim" --description "Unofficial SciDB HTTP service" --provides "shim" -v $$(basename $(SCIDB)) --after-install pkgroot/$(SCIDB)/shim/after-install.sh --before-remove init.d/before-remove.sh -C pkgroot opt usr var
 
 clean:
 	$(MAKE) -C src clean
