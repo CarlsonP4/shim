@@ -12,11 +12,13 @@ if test -n "$(which systemctl 2>/dev/null)"; then
   systemctl -q daemon-reload 2>/dev/null || true
 elif test -n "$(which update-rc.d 2>/dev/null)"; then
 # Ubuntu
+  service shimsvc stop
   update-rc.d -f shimsvc remove
-  /etc/init.d/shimsvc stop
+  rm -f /etc/init.d/shimsvc
 elif test -n "$(which chkconfig 2>/dev/null)"; then
 # RHEL sysV
+  service shimsvc stop
   chkconfig --del shimsvc
   chkconfig shimsvc off
-  /etc/init.d/shimsvc stop
+  rm -f /etc/init.d/shimsvc
 fi

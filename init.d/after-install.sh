@@ -17,11 +17,11 @@ elif test -n "$(which update-rc.d 2>/dev/null)"; then
   cp /opt/scidb/XXX_SCIDB_VER_XXX/shim/shimsvc.initd /etc/init.d/shimsvc
   chmod 0755 /etc/init.d/shimsvc
   update-rc.d shimsvc defaults
-  /etc/init.d/shimsvc start
+  service shimsvc start
 elif test -n "$(which chkconfig 2>/dev/null)"; then
 # RHEL sysV
   cp /opt/scidb/XXX_SCIDB_VER_XXX/shim/shimsvc.initd /etc/init.d/shimsvc
   chmod 0755 /etc/init.d/shimsvc
   chkconfig --add shimsvc && chkconfig shimsvc on
-  /etc/init.d/shimsvc start
+  service shimsvc start
 fi
