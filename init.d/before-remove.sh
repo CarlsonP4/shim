@@ -6,8 +6,8 @@
 
 if test -n "$(which systemctl 2>/dev/null)"; then
 # SystemD
-  systemctl -q stop shim 2>/dev/null || true
-  systemctl -q disable  shim 2>/dev/null || true
+  systemctl -q stop shimvc 2>/dev/null || true
+  systemctl -q disable shimvc 2>/dev/null || true
   rm -f /lib/systemd/system/shim.service
   systemctl -q daemon-reload 2>/dev/null || true
 elif test -n "$(which update-rc.d 2>/dev/null)"; then

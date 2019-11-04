@@ -10,8 +10,8 @@ if test -n "$(which systemctl 2>/dev/null)"; then
 # SystemD
   cp /opt/scidb/XXX_SCIDB_VER_XXX/shim/shimsvc.service /lib/systemd/system/shimsvc.service
   systemctl daemon-reload
-  systemctl enable shim
-  systemctl start shim
+  systemctl enable shimsvc
+  systemctl start shimsvc
 elif test -n "$(which update-rc.d 2>/dev/null)"; then
 # Ubuntu
   cp /opt/scidb/XXX_SCIDB_VER_XXX/shim/shimsvc.initd /etc/init.d/shimsvc
