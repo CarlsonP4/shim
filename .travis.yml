@@ -1,18 +1,13 @@
 sudo: required
+dist: trusty
+group: deprecated-2017Q4
 
 language: python
 
 python:
   - "3.6"
 
-env:
-  global:
-    - SCIDB_VER=19.3
-    - PKG_VER=2
-  matrix:
-    - BUILD_IMG=ubuntu:trusty
-    - BUILD_IMG=centos:6
-    - BUILD_IMG=centos:7
+env: SCIDB_VER=19.3
 
 services:
   - docker
