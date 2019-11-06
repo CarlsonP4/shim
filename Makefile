@@ -83,7 +83,7 @@ unservice: stop-service
 deb-pkg: shim
 	@if test -z "$$(which fpm 2>/dev/null)"; then echo "Error: Package building requires fpm, try running gem install fpm."; exit 1;fi
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find the scidb executable. Try explicitly setting the SCIDB variable, for example: 'make SCIDB=/opt/scidb/19.3 $@'"; exit 1; fi
-	rm -rf pkgroot
+	rm -rf pkgroot *.deb
 	mkdir -p pkgroot/$(SCIDB)/bin
 	cp shim "pkgroot/$(SCIDB)/bin"
 	mkdir -p pkgroot/$(SCIDB)/shim
@@ -97,7 +97,7 @@ deb-pkg: shim
 	chmod -R 755 pkgroot/var/lib/shim
 	mkdir -p pkgroot/usr/local/share/man/man1
 	@if test -d /usr/local/share/man/man1;then cp man/shim.1 pkgroot/usr/local/share/man/man1/;fi
-	fpm -s dir -t deb -n shim --vendor Paradigm4 -d libssl-dev --license AGPLv3 -m "<blewis@paradigm4.com>" --url "https://github.com/Paradigm4/shim" --description "Unofficial SciDB HTTP service" --provides "shim" -v $$(basename $(SCIDB)) --after-install pkgroot/$(SCIDB)/shim/after-install.sh --before-remove init.d/before-remove.sh -C pkgroot opt usr var
+	fpm -s dir -t deb -n shim -d libssl-dev --vendor Paradigm4 --license AGPLv3 -m "<blewis@paradigm4.com>" --url "https://github.com/Paradigm4/shim" --description "Unofficial SciDB HTTP service" --provides "shim" -v $$(basename $(SCIDB)) --after-install pkgroot/$(SCIDB)/shim/after-install.sh --before-remove init.d/before-remove.sh -C pkgroot opt usr var
 
 rpm-pkg: shim
 	@if test -z "$$(which fpm 2>/dev/null)"; then echo "Error: Package building requires fpm, try running gem install fpm."; exit 1;fi
@@ -116,7 +116,7 @@ rpm-pkg: shim
 	chmod -R 755 pkgroot/var/lib/shim
 	mkdir -p pkgroot/usr/local/share/man/man1
 	@if test -d /usr/local/share/man/man1;then cp man/shim.1 pkgroot/usr/local/share/man/man1/;fi
-	fpm -s dir -t rpm -n shim -d "openssl-devel" --vendor Paradigm4 --license AGPLv3 -m "<blewis@paradigm4.com>" --url "https://github.com/Paradigm4/shim" --description "Unofficial SciDB HTTP service" --provides "shim" -v $$(basename $(SCIDB)) --after-install pkgroot/$(SCIDB)/shim/after-install.sh --before-remove init.d/before-remove.sh -C pkgroot opt usr var
+	fpm -s dir -t rpm -n shim -d openssl-devel --vendor Paradigm4 --license AGPLv3 -m "<blewis@paradigm4.com>" --url "https://github.com/Paradigm4/shim" --description "Unofficial SciDB HTTP service" --provides "shim" -v $$(basename $(SCIDB)) --after-install pkgroot/$(SCIDB)/shim/after-install.sh --before-remove init.d/before-remove.sh -C pkgroot opt usr var
 
 clean:
 	$(MAKE) -C src clean

@@ -59,7 +59,7 @@ $ sudo ln -s ~/scidb/lib /opt/scidb/19.3/lib
 $ sudo service shimsvc start
 Starting shim
 ```
-You could also edit /etc/init.d/shimsvc or /lib/systemd/system/shim.service, or use other environment/path tricks.
+You could also edit /etc/init.d/shimsvc, or /lib/systemd/system/shim.service, or use other environment/path tricks.
 
 ## Configuring shim
 
@@ -96,7 +96,7 @@ is running under.
 * `instance` Which SciDB instance should save data to files or pipes? This instance must have write permission to the `tmp` directory.
 * `aio` Enable fast save using the SciDB accelerated_io_tools (AIO) plugin.
 
-Restart shim to effect option changes with either `service shimsvc restart` or `systemctl restart shim`, whichever is appropriate.
+Restart shim to effect option changes with either `service shimsvc restart` or `systemctl restart shimsvc`, whichever is appropriate.
 
 ## Note on the SSL Key Certificate Configuration
 
@@ -123,8 +123,8 @@ service shimsvc start
 
 or
 
-systemctl shim stop
-systemctl shim start
+systemctl shimsvc stop
+systemctl shimsvc start
 ```
 
 ## Log files
